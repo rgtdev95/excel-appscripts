@@ -1,0 +1,104 @@
+async function main(workbook: ExcelScript.Workbook) {
+    // Get the RAW sheet
+    const rawSheet = workbook.getWorksheet("RAW");
+
+    if (!rawSheet) {
+        console.log("RAW sheet not found!");
+        return;
+    }
+
+    // Get the used range from RAW sheet
+    const usedRange = rawSheet.getUsedRange();
+    const rawData = usedRange.getValues();
+
+    // Get headers from first row
+    const headers = rawData[0];
+
+    // Find column indices
+    const agentNameCol = headers.indexOf("Agent Full Name");
+    const weekCol = headers.indexOf("Week #");
+    const occupancyCol = headers.indexOf("Occupancy Rate (%)");
+    const callsAnsweredCol = headers.indexOf("Calls answered (%)");
+    const fcrCol = headers.indexOf("[FCR] First Contact Resolution (%)");
+    const speedCol = headers.indexOf("Average Speed of Answer (seconds)");
+    const ticketFormatCol = headers.indexOf("Ticket Format (1-5)");
+    const ahtCol = headers.indexOf("[AHT] avg Handle Time (minutes)");
+    const csatCol = headers.indexOf("CSAT (%)");
+    const holdTimeCol = headers.indexOf("Avg. Hold Time (minutes)");
+    const absenteeismCol = headers.indexOf("Absenteeism (%)");
+    const cphCol = headers.indexOf("[CPH] Calls per hour");
+
+    // Process each row (skip header)
+    for (let i = 1; i < rawData.length; i++) {
+        const row = rawData[i];
+
+        const agentName = row[agentNameCol]?.toString().trim();
+        const weekNum = row[weekCol]?.toString().trim();
+
+        if (!agentName || !weekNum) continue;
+
+        // Get or create agent sheet
+        let agentSheet = workbook.getWorksheet(agentName);
+
+        if (!agentSheet) {
+            console.log(`Sheet for ${agentName} not found. Skipping...`);
+            continue;
+        }
+
+        // Find the week column in row 7
+        // Get a larger range to ensure we capture all weeks
+        const row7Range = agentSheet.getRange("7:7");
+        const row7UsedRange = row7Range.getUsedRange();
+
+        if (!row7UsedRange) {
+            console.log(`No data found in row 7 of ${agentName} sheet`);
+            continue;
+        }
+
+        const row7Values = row7UsedRange.getValues()[0];
+        const row7StartCol = row7UsedRange.getColumnIndex();
+
+        let weekColIndex = -1;
+        for (let j = 0; j < row7Values.length; j++) {
+            const cellValue = row7Values[j]?.toString().trim();
+            if (cellValue === weekNum) {
+                weekColIndex = row7StartCol + j;
+                break;
+            }
+        }
+
+        if (weekColIndex === -1) {
+            console.log(`Week ${weekNum} not found in ${agentName} sheet`);
+            continue;
+        }
+
+        // Prepare data in the correct order
+        const dataToWrite = [
+            [row[occupancyCol]],      // Occupancy Rate (%)
+            [row[callsAnsweredCol]],  // Calls answered (%)
+            [row[fcrCol]],            // FCR
+            [row[speedCol]],          // Average Speed of Answer
+            [row[ticketFormatCol]],   // Ticket Format (1-5)
+            [row[ahtCol]],            // AHT
+            [row[csatCol]],           // CSAT (%)
+            [row[holdTimeCol]],       // Avg. Hold Time
+            [row[absenteeismCol]],    // Absenteeism (%)
+            [row[cphCol]]             // CPH
+        ];
+
+        // Write data starting from row 8 (below row 7 where week is located)
+        const startRow = 8; // Row 8 in 1-based indexing
+        const targetRange = agentSheet.getRangeByIndexes(
+            startRow - 1,           // Convert to 0-based
+            weekColIndex,           // Column index
+            10,                     // 10 rows of data
+            1                       // 1 column wide
+        );
+
+        targetRange.setValues(dataToWrite);
+
+        console.log(`Updated ${agentName} - ${weekNum}`);
+    }
+
+    console.log("Data distribution complete!");
+}
