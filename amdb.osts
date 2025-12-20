@@ -1,0 +1,96 @@
+function main(workbook: ExcelScript.Workbook) {
+  const inputSheet = workbook.getWorksheet("INPUT");
+  const parentSheet = workbook.getWorksheet("PARENT");
+  const singleSheet = workbook.getWorksheet("SINGLE");
+
+  const inputValue = String(inputSheet.getRange("H8").getValue()).trim();
+  if (!inputValue) {
+    inputSheet.getRange("H9").setValue("WARNING: No input provided");
+    return;
+  }
+
+  // -----------------------------
+  // Ticket Number
+  // -----------------------------
+  const ticketMatch = inputValue.match(/#(\d+)/);
+  if (!ticketMatch) {
+    inputSheet.getRange("H9").setValue("WARNING: Invalid ticket number");
+    return;
+  }
+  const ticketNumber = ticketMatch[1];
+
+  // -----------------------------
+  // Extract Brackets
+  // -----------------------------
+  const rawBrackets = inputValue.match(/\[([^\]]+)\]/g);
+  if (!rawBrackets || rawBrackets.length < 4) {
+    inputSheet.getRange("H9").setValue("WARNING: Invalid ticket format");
+    return;
+  }
+
+  const brackets = rawBrackets.map(b => b.replace(/[\[\]]/g, "").trim());
+
+  // -----------------------------
+  // Detect Parent
+  // -----------------------------
+  const isParent = brackets[0].toLowerCase() === "parent";
+  const targetSheet = isParent ? parentSheet : singleSheet;
+
+  let index = isParent ? 1 : 0;
+
+  const alertCode = brackets[index++] || "";
+  const environment = brackets[index++] || "";
+  const region = brackets[index++] || "";
+
+  let alertType = "";
+  let description = "";
+
+  if (brackets.length - index === 2) {
+    alertType = brackets[index++];
+    description = brackets[index++];
+  } else if (brackets.length - index === 1) {
+    description = brackets[index++];
+  } else {
+    inputSheet.getRange("H9").setValue("WARNING: Unable to parse ticket format");
+    return;
+  }
+
+  // -----------------------------
+  // Duplicate Check (Per Sheet)
+  // -----------------------------
+  const usedRange = targetSheet.getUsedRange();
+  if (usedRange) {
+    const values = usedRange.getValues();
+    for (let i = 1; i < values.length; i++) {
+      if (String(values[i][0]).trim() === ticketNumber) {
+        inputSheet
+          .getRange("H9")
+          .setValue(`WARNING: Ticket #${ticketNumber} already exists in ${targetSheet.getName()} at row ${i + 1}`);
+        return;
+      }
+    }
+  }
+
+  // -----------------------------
+  // Insert Row
+  // -----------------------------
+  const nextRow = usedRange ? usedRange.getRowCount() + 1 : 2;
+
+  targetSheet.getRange(`A${nextRow}`).setValue(ticketNumber);
+  targetSheet.getRange(`B${nextRow}`).setValue(alertCode);
+  targetSheet.getRange(`C${nextRow}`).setValue(environment);
+  targetSheet.getRange(`D${nextRow}`).setValue(region);
+  targetSheet.getRange(`E${nextRow}`).setValue(alertType);
+  targetSheet.getRange(`F${nextRow}`).setValue(description);
+
+  // -----------------------------
+  // Success
+  // -----------------------------
+  inputSheet
+    .getRange("H9")
+    .setValue(
+      `SUCCESS: Ticket #${ticketNumber} added to ${targetSheet.getName()}`
+    );
+
+  inputSheet.getRange("H8").clear();
+}
