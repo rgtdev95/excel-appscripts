@@ -36,22 +36,37 @@ function main(workbook: ExcelScript.Workbook) {
   if (inputValue.includes("51029") || inputValue.includes("51026")) {
     amdbCode = inputValue.includes("51029") ? "51029" : "51026";
     
-    // Extract type of alert
-    let typeMatch = inputValue.match(/5102[69]\s*-\s*(.*?)(?=\s*-|for:|Host\s*:)/);
-    alertType = typeMatch ? typeMatch[1].trim() : "Unknown Alert Type";
-    
     if (amdbCode === "51029") {
-      // Extract description after "for:"
-      let descMatch = inputValue.match(/51029\s*-\s*.*?\s*for:\s*(.*)/);
+      // Extract environment (TST, PRD, DEV, etc.)
+      let envMatch = inputValue.match(/51029\s*-\s*([A-Z]+)\s*-/);
+      environment = envMatch ? envMatch[1].trim() : "";
+      
+      // Extract alert type (everything after "51029 - TST - " until " for:")
+      let typeMatch = inputValue.match(/51029\s*-\s*[A-Z]+\s*-\s*(.*?)\s+for:/);
+      alertType = typeMatch ? typeMatch[1].trim() : "Unknown Alert Type";
+      
+      // Extract description (everything after "for:")
+      let descMatch = inputValue.match(/for:\s*(.*)/);
       description = descMatch ? descMatch[1].trim() : "No description found";
+      
+      region = ""; // No region for 51029
+      
     } else if (amdbCode === "51026") {
-      // Extract description after "Host :"
-      let descMatch = inputValue.match(/51026\s*-\s*.*?\s*-\s*Host\s*:\s*(.*)/);
+      // Extract environment
+      let envMatch = inputValue.match(/51026\s*-\s*([A-Z]+)\s*-/);
+      environment = envMatch ? envMatch[1].trim() : "";
+      
+      // Extract alert type
+      let typeMatch = inputValue.match(/51026\s*-\s*[A-Z]+\s*-\s*(.*?)\s*-\s*Host\s*:/);
+      alertType = typeMatch ? typeMatch[1].trim() : "Unknown Alert Type";
+      
+      // Extract description (everything after "Host :")
+      let descMatch = inputValue.match(/Host\s*:\s*(.*)/);
       description = descMatch ? descMatch[1].trim() : "No description found";
+      
+      region = ""; // No region for 51026
     }
     
-    environment = "";
-    region = "";
     isParent = false; // 51029/51026 tickets go to SINGLE sheet
     
   } else {
