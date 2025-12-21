@@ -3,9 +3,13 @@ function main(workbook: ExcelScript.Workbook) {
   const parentSheet = workbook.getWorksheet("PARENT");
   const singleSheet = workbook.getWorksheet("SINGLE");
 
-  const inputValue = String(inputSheet.getRange("H8").getValue()).trim();
+  const inputValue = String(inputSheet.getRange("C6").getValue()).trim();
+  const owner = String(inputSheet.getRange("C7").getValue()).toLowerCase().trim();
+  const priority = String(inputSheet.getRange("C8").getValue()).toUpperCase().trim();
+  const remarks = String(inputSheet.getRange("C9").getValue()).toLowerCase().trim();
+
   if (!inputValue) {
-    inputSheet.getRange("H9").setValue("WARNING: No input provided");
+    inputSheet.getRange("C10").setValue("WARNING: No ticket input provided");
     return;
   }
 
@@ -14,7 +18,7 @@ function main(workbook: ExcelScript.Workbook) {
   // -----------------------------
   const ticketMatch = inputValue.match(/#(\d+)/);
   if (!ticketMatch) {
-    inputSheet.getRange("H9").setValue("WARNING: Invalid ticket number");
+    inputSheet.getRange("C10").setValue("WARNING: Invalid ticket number");
     return;
   }
   const ticketNumber = ticketMatch[1];
@@ -24,7 +28,7 @@ function main(workbook: ExcelScript.Workbook) {
   // -----------------------------
   const rawBrackets = inputValue.match(/\[([^\]]+)\]/g);
   if (!rawBrackets || rawBrackets.length < 4) {
-    inputSheet.getRange("H9").setValue("WARNING: Invalid ticket format");
+    inputSheet.getRange("C10").setValue("WARNING: Invalid ticket format");
     return;
   }
 
@@ -38,7 +42,7 @@ function main(workbook: ExcelScript.Workbook) {
 
   let index = isParent ? 1 : 0;
 
-  const alertCode = brackets[index++] || "";
+  const amdbCode = brackets[index++] || "";
   const environment = brackets[index++] || "";
   const region = brackets[index++] || "";
 
@@ -51,46 +55,56 @@ function main(workbook: ExcelScript.Workbook) {
   } else if (brackets.length - index === 1) {
     description = brackets[index++];
   } else {
-    inputSheet.getRange("H9").setValue("WARNING: Unable to parse ticket format");
+    inputSheet.getRange("C10").setValue("WARNING: Unable to parse ticket format");
     return;
   }
 
   // -----------------------------
-  // Duplicate Check (Per Sheet)
+  // Find First Empty Row (Ticket Number Column)
   // -----------------------------
-  const usedRange = targetSheet.getUsedRange();
-  if (usedRange) {
-    const values = usedRange.getValues();
-    for (let i = 1; i < values.length; i++) {
-      if (String(values[i][0]).trim() === ticketNumber) {
-        inputSheet
-          .getRange("H9")
-          .setValue(`WARNING: Ticket #${ticketNumber} already exists in ${targetSheet.getName()} at row ${i + 1}`);
-        return;
-      }
+  const ticketCol = targetSheet.getRange("F:F").getValues();
+  let insertRow = 2; // assuming row 1 is header
+
+  for (let i = 1; i < ticketCol.length; i++) {
+    if (!ticketCol[i][0]) {
+      insertRow = i + 1;
+      break;
     }
   }
 
   // -----------------------------
-  // Insert Row
+  // Duplicate Check
   // -----------------------------
-  const nextRow = usedRange ? usedRange.getRowCount() + 1 : 2;
+  for (let i = 1; i < ticketCol.length; i++) {
+    if (String(ticketCol[i][0]).trim() === ticketNumber) {
+      inputSheet
+        .getRange("C10")
+        .setValue(`WARNING: Ticket #${ticketNumber} already exists in ${targetSheet.getName()} (row ${i + 1})`);
+      return;
+    }
+  }
 
-  targetSheet.getRange(`A${nextRow}`).setValue(ticketNumber);
-  targetSheet.getRange(`B${nextRow}`).setValue(alertCode);
-  targetSheet.getRange(`C${nextRow}`).setValue(environment);
-  targetSheet.getRange(`D${nextRow}`).setValue(region);
-  targetSheet.getRange(`E${nextRow}`).setValue(alertType);
-  targetSheet.getRange(`F${nextRow}`).setValue(description);
+  // -----------------------------
+  // Insert Data
+  // -----------------------------
+  targetSheet.getRange(`A${insertRow}`).setValue(amdbCode);
+  targetSheet.getRange(`B${insertRow}`).setValue(description);
+  targetSheet.getRange(`C${insertRow}`).setValue(environment);
+  targetSheet.getRange(`D${insertRow}`).setValue(region);
+  targetSheet.getRange(`E${insertRow}`).setValue(alertType);
+  targetSheet.getRange(`F${insertRow}`).setValue(ticketNumber);
+  targetSheet.getRange(`G${insertRow}`).setValue(owner);
+  targetSheet.getRange(`H${insertRow}`).setValue(priority);
+  targetSheet.getRange(`I${insertRow}`).setValue(remarks);
+  // Column J intentionally left blank (Next Follow-up Date)
 
   // -----------------------------
   // Success
   // -----------------------------
   inputSheet
-    .getRange("H9")
-    .setValue(
-      `SUCCESS: Ticket #${ticketNumber} added to ${targetSheet.getName()}`
-    );
+    .getRange("C10")
+    .setValue(`SUCCESS: Ticket #${ticketNumber} added to ${targetSheet.getName()} (row ${insertRow})`);
 
-  inputSheet.getRange("H8").clear();
+  // Clear input
+  inputSheet.getRange("C6:C9").clear();
 }
