@@ -2,17 +2,16 @@ function main(workbook: ExcelScript.Workbook) {
   const inputSheet = workbook.getWorksheet("INPUT");
   const parentSheet = workbook.getWorksheet("PARENT");
   const singleSheet = workbook.getWorksheet("SINGLE");
-
   const inputValue = String(inputSheet.getRange("C6").getValue()).trim();
   const owner = String(inputSheet.getRange("C7").getValue()).toLowerCase().trim();
   const priority = String(inputSheet.getRange("C8").getValue()).toUpperCase().trim();
   const remarks = String(inputSheet.getRange("C9").getValue()).toLowerCase().trim();
-
+  
   if (!inputValue) {
     inputSheet.getRange("C10").setValue("WARNING: No ticket input provided");
     return;
   }
-
+  
   // -----------------------------
   // Ticket Number
   // -----------------------------
@@ -22,7 +21,7 @@ function main(workbook: ExcelScript.Workbook) {
     return;
   }
   const ticketNumber = ticketMatch[1];
-
+  
   // -----------------------------
   // Extract Brackets
   // -----------------------------
@@ -31,24 +30,20 @@ function main(workbook: ExcelScript.Workbook) {
     inputSheet.getRange("C10").setValue("WARNING: Invalid ticket format");
     return;
   }
-
   const brackets = rawBrackets.map(b => b.replace(/[\[\]]/g, "").trim());
-
+  
   // -----------------------------
   // Detect Parent
   // -----------------------------
   const isParent = brackets[0].toLowerCase() === "parent";
   const targetSheet = isParent ? parentSheet : singleSheet;
-
   let index = isParent ? 1 : 0;
-
   const amdbCode = brackets[index++] || "";
   const environment = brackets[index++] || "";
   const region = brackets[index++] || "";
-
   let alertType = "";
   let description = "";
-
+  
   if (brackets.length - index === 2) {
     alertType = brackets[index++];
     description = brackets[index++];
@@ -58,8 +53,8 @@ function main(workbook: ExcelScript.Workbook) {
     inputSheet.getRange("C10").setValue("WARNING: Unable to parse ticket format");
     return;
   }
-
- // -----------------------------
+  
+  // -----------------------------
   // Find First Empty Row (Safe)
   // -----------------------------
   let insertRow = 2; // default after header
@@ -84,7 +79,7 @@ function main(workbook: ExcelScript.Workbook) {
       insertRow = values.length + 1;
     }
   }
-
+  
   // -----------------------------
   // Duplicate Check
   // -----------------------------
@@ -95,6 +90,7 @@ function main(workbook: ExcelScript.Workbook) {
       .setValue(`WARNING: Ticket #${ticketNumber} already exists in ${targetSheet.getName()} (row ${row})`);
     return;
   }
+  
   // -----------------------------
   // Insert Data
   // -----------------------------
@@ -108,14 +104,14 @@ function main(workbook: ExcelScript.Workbook) {
   targetSheet.getRange(`H${insertRow}`).setValue(priority);
   targetSheet.getRange(`I${insertRow}`).setValue(remarks);
   // Column J intentionally left blank (Next Follow-up Date)
-
+  
   // -----------------------------
   // Success
   // -----------------------------
   inputSheet
     .getRange("C10")
     .setValue(`SUCCESS: Ticket #${ticketNumber} added to ${targetSheet.getName()} (row ${insertRow})`);
-
+  
   // Clear input
   inputSheet.getRange("C6:C9").clear();
 }
