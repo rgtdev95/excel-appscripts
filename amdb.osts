@@ -59,31 +59,42 @@ function main(workbook: ExcelScript.Workbook) {
     return;
   }
 
+ // -----------------------------
+  // Find First Empty Row (Safe)
   // -----------------------------
-  // Find First Empty Row (Ticket Number Column)
-  // -----------------------------
-  const ticketCol = targetSheet.getRange("F:F").getValues();
-  let insertRow = 2; // assuming row 1 is header
-
-  for (let i = 1; i < ticketCol.length; i++) {
-    if (!ticketCol[i][0]) {
-      insertRow = i + 1;
-      break;
+  let insertRow = 2; // default after header
+  let ticketValues: string[] = [];
+  
+  const usedRange = targetSheet.getUsedRange();
+  
+  if (usedRange) {
+    const values = usedRange.getValues();
+  
+    for (let i = 1; i < values.length; i++) {
+      const cellValue = String(values[i][5] || "").trim(); // Column F
+      ticketValues.push(cellValue);
+  
+      if (!cellValue && insertRow === 2) {
+        insertRow = i + 1;
+      }
+    }
+  
+    // If no empty row found, append at end
+    if (insertRow === 2 && values.length > 1) {
+      insertRow = values.length + 1;
     }
   }
 
   // -----------------------------
   // Duplicate Check
   // -----------------------------
-  for (let i = 1; i < ticketCol.length; i++) {
-    if (String(ticketCol[i][0]).trim() === ticketNumber) {
-      inputSheet
-        .getRange("C10")
-        .setValue(`WARNING: Ticket #${ticketNumber} already exists in ${targetSheet.getName()} (row ${i + 1})`);
-      return;
-    }
+  if (ticketValues.includes(ticketNumber)) {
+    const row = ticketValues.indexOf(ticketNumber) + 2;
+    inputSheet
+      .getRange("C10")
+      .setValue(`WARNING: Ticket #${ticketNumber} already exists in ${targetSheet.getName()} (row ${row})`);
+    return;
   }
-
   // -----------------------------
   // Insert Data
   // -----------------------------
