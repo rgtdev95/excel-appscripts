@@ -22,37 +22,71 @@ function main(workbook: ExcelScript.Workbook) {
   }
   const ticketNumber = ticketMatch[1];
   
-  // -----------------------------
-  // Extract Brackets
-  // -----------------------------
-  const rawBrackets = inputValue.match(/\[([^\]]+)\]/g);
-  if (!rawBrackets || rawBrackets.length < 4) {
-    inputSheet.getRange("C10").setValue("WARNING: Invalid ticket format");
-    return;
-  }
-  const brackets = rawBrackets.map(b => b.replace(/[\[\]]/g, "").trim());
-  
-  // -----------------------------
-  // Detect Parent
-  // -----------------------------
-  const isParent = brackets[0].toLowerCase() === "parent";
-  const targetSheet = isParent ? parentSheet : singleSheet;
-  let index = isParent ? 1 : 0;
-  const amdbCode = brackets[index++] || "";
-  const environment = brackets[index++] || "";
-  const region = brackets[index++] || "";
+  // Variables to populate
+  let amdbCode = "";
+  let environment = "";
+  let region = "";
   let alertType = "";
   let description = "";
+  let isParent = false;
   
-  if (brackets.length - index === 2) {
-    alertType = brackets[index++];
-    description = brackets[index++];
-  } else if (brackets.length - index === 1) {
-    description = brackets[index++];
+  // -----------------------------
+  // Special parsing for 51029 or 51026
+  // -----------------------------
+  if (inputValue.includes("51029") || inputValue.includes("51026")) {
+    amdbCode = inputValue.includes("51029") ? "51029" : "51026";
+    
+    // Extract type of alert
+    let typeMatch = inputValue.match(/5102[69]\s*-\s*(.*?)(?=\s*-|for:|Host\s*:)/);
+    alertType = typeMatch ? typeMatch[1].trim() : "Unknown Alert Type";
+    
+    if (amdbCode === "51029") {
+      // Extract description after "for:"
+      let descMatch = inputValue.match(/51029\s*-\s*.*?\s*for:\s*(.*)/);
+      description = descMatch ? descMatch[1].trim() : "No description found";
+    } else if (amdbCode === "51026") {
+      // Extract description after "Host :"
+      let descMatch = inputValue.match(/51026\s*-\s*.*?\s*-\s*Host\s*:\s*(.*)/);
+      description = descMatch ? descMatch[1].trim() : "No description found";
+    }
+    
+    environment = "";
+    region = "";
+    isParent = false; // 51029/51026 tickets go to SINGLE sheet
+    
   } else {
-    inputSheet.getRange("C10").setValue("WARNING: Unable to parse ticket format");
-    return;
+    // -----------------------------
+    // Standard Bracket Parsing
+    // -----------------------------
+    const rawBrackets = inputValue.match(/\[([^\]]+)\]/g);
+    if (!rawBrackets || rawBrackets.length < 4) {
+      inputSheet.getRange("C10").setValue("WARNING: Invalid ticket format");
+      return;
+    }
+    const brackets = rawBrackets.map(b => b.replace(/[\[\]]/g, "").trim());
+    
+    // Detect Parent
+    isParent = brackets[0].toLowerCase() === "parent";
+    let index = isParent ? 1 : 0;
+    amdbCode = brackets[index++] || "";
+    environment = brackets[index++] || "";
+    region = brackets[index++] || "";
+    
+    if (brackets.length - index === 2) {
+      alertType = brackets[index++];
+      description = brackets[index++];
+    } else if (brackets.length - index === 1) {
+      description = brackets[index++];
+    } else {
+      inputSheet.getRange("C10").setValue("WARNING: Unable to parse ticket format");
+      return;
+    }
   }
+  
+  // -----------------------------
+  // Select Target Sheet
+  // -----------------------------
+  const targetSheet = isParent ? parentSheet : singleSheet;
   
   // -----------------------------
   // Find First Empty Row (Ignore Borders)
