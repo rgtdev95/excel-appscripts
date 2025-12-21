@@ -52,12 +52,11 @@ function main(workbook: ExcelScript.Workbook) {
       region = ""; // No region for 51029
       
     } else if (amdbCode === "51026") {
-      // Extract environment
-      let envMatch = inputValue.match(/51026\s*-\s*([A-Z]+)\s*-/);
-      environment = envMatch ? envMatch[1].trim() : "";
+      // No environment for 51026
+      environment = "";
       
-      // Extract alert type
-      let typeMatch = inputValue.match(/51026\s*-\s*[A-Z]+\s*-\s*(.*?)\s*-\s*Host\s*:/);
+      // Extract alert type (everything after "51026 - " until " - Host:")
+      let typeMatch = inputValue.match(/51026\s*-\s*(.*?)\s*-\s*Host\s*:/);
       alertType = typeMatch ? typeMatch[1].trim() : "Unknown Alert Type";
       
       // Extract description (everything after "Host :")
