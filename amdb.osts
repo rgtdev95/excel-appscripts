@@ -55,7 +55,7 @@ function main(workbook: ExcelScript.Workbook) {
   }
   
   // -----------------------------
-  // Find First Empty Row (Safe)
+  // Find First Empty Row (Fixed)
   // -----------------------------
   let insertRow = 2; // default after header
   let ticketValues: string[] = [];
@@ -64,20 +64,27 @@ function main(workbook: ExcelScript.Workbook) {
   
   if (usedRange) {
     const values = usedRange.getValues();
-  
-    for (let i = 1; i < values.length; i++) {
-      const cellValue = String(values[i][5] || "").trim(); // Column F
-      ticketValues.push(cellValue);
-  
-      if (!cellValue && insertRow === 2) {
-        insertRow = i + 1;
+    
+    // Start from row 2 (index 1), or if only headers exist, insertRow stays 2
+    if (values.length > 1) {
+      // Loop through data rows
+      for (let i = 1; i < values.length; i++) {
+        const cellValue = String(values[i][5] || "").trim(); // Column F
+        ticketValues.push(cellValue);
+        
+        // If we find an empty cell in column F and haven't set insertRow yet
+        if (!cellValue) {
+          insertRow = i + 1; // Convert to 1-based row number
+          break; // Found first empty row, stop looking
+        }
+      }
+      
+      // If no empty row found (all rows have data), append at end
+      if (insertRow === 2 && values.length > 1) {
+        insertRow = values.length + 1;
       }
     }
-  
-    // If no empty row found, append at end
-    if (insertRow === 2 && values.length > 1) {
-      insertRow = values.length + 1;
-    }
+    // else: only headers exist, insertRow remains 2
   }
   
   // -----------------------------
