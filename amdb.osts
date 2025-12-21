@@ -55,36 +55,32 @@ function main(workbook: ExcelScript.Workbook) {
   }
   
   // -----------------------------
-  // Find First Empty Row (Fixed)
+  // Find First Empty Row (Ignore Borders)
   // -----------------------------
   let insertRow = 2; // default after header
   let ticketValues: string[] = [];
   
-  const usedRange = targetSheet.getUsedRange();
+  // Check a large range (adjust rows as needed, e.g., 1000 rows)
+  const dataRange = targetSheet.getRange("A1:F1000");
+  const values = dataRange.getValues();
   
-  if (usedRange) {
-    const values = usedRange.getValues();
+  // Start from row 2 (index 1)
+  for (let i = 1; i < values.length; i++) {
+    const rowData = values[i];
+    const ticketCell = String(rowData[5] || "").trim(); // Column F (index 5)
     
-    // Start from row 2 (index 1), or if only headers exist, insertRow stays 2
-    if (values.length > 1) {
-      // Loop through data rows
-      for (let i = 1; i < values.length; i++) {
-        const cellValue = String(values[i][5] || "").trim(); // Column F
-        ticketValues.push(cellValue);
-        
-        // If we find an empty cell in column F and haven't set insertRow yet
-        if (!cellValue) {
-          insertRow = i + 1; // Convert to 1-based row number
-          break; // Found first empty row, stop looking
-        }
-      }
-      
-      // If no empty row found (all rows have data), append at end
-      if (insertRow === 2 && values.length > 1) {
-        insertRow = values.length + 1;
-      }
+    // Check if the entire row is empty (all columns A-F)
+    const isRowEmpty = rowData.every(cell => !cell || String(cell).trim() === "");
+    
+    if (isRowEmpty && insertRow === 2) {
+      insertRow = i + 1; // Found first empty row
+      break;
     }
-    // else: only headers exist, insertRow remains 2
+    
+    // Collect ticket numbers for duplicate check
+    if (ticketCell) {
+      ticketValues.push(ticketCell);
+    }
   }
   
   // -----------------------------
